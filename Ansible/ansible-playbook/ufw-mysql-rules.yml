@@ -1,0 +1,44 @@
+- hosts: HOSTS
+  become: true
+ 
+  tasks:
+  - name: Install UFW
+    apt:
+      name: ufw
+      state: present
+ 
+  - name: Enable UFW
+    ufw:
+      state: enabled
+      policy: deny
+ 
+  - name: Allow SSH connections
+    ufw:
+      rule: allow
+      port: '22'
+      name: OpenSSH
+ 
+  - name: Allow http on port 80
+    ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+ 
+  - name: Allow nginx on personalized port 8080
+    ufw:
+      rule: allow
+      port: '8080'
+      proto: tcp    
+ 
+  - name: Allow https on port 443
+    ufw:
+      rule: allow
+      port: '443'
+      proto: tcp
+ 
+  - name: Allow access to port 3306 from specific IP
+    ufw:
+      rule: allow
+      src: 192.168.1.50
+      port: '3306'
+      proto: tcp

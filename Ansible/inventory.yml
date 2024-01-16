@@ -1,0 +1,15 @@
+[HOSTS]
+10.0.1.20
+10.0.1.218
+10.0.1.211
+
+
+[webservers]
+SRV1 ansible_host=10.0.1.20
+SRV2 ansible_host=10.0.1.218
+
+[loadbalancer]
+SRV3 ansible_host=10.0.1.211
+
+
+[BDD]

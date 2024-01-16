@@ -1,0 +1,29 @@
+
+- name: Installer et configurer NGINX pour écouter sur le port 8080
+  hosts: HOSTS
+  become: yes
+
+  tasks:
+    - name: Mettre à jour le cache des dépôts et installer le paquet NGINX
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Copier le fichier de configuration NGINX pour le port 8888
+      ansible.builtin.template:
+        src: /home/hades/project/terraform/Ansible/ansible-playbook/nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+      notify: redémarrer_nginx
+
+    - name: Assurer que NGINX est en cours d'exécution et activé au démarrage
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: redémarrer_nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

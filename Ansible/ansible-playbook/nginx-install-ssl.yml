@@ -1,0 +1,79 @@
+- name: Générer une clé privée, CSR, certificat auto-signé et déployer NGINX avec SSL
+  hosts: HOSTS
+  become: yes
+  vars:
+    domain_name: "lagitanerie.fr"
+    openssl_private_key_path: "/etc/ssl/private/{{ domain_name }}.key"
+    openssl_csr_path: "/etc/ssl/certs/{{ domain_name }}.csr"
+    openssl_cert_path: "/etc/ssl/certs/{{ domain_name }}.crt"
+    common_name: "{{ domain_name }}"
+    nginx_conf_path: "/etc/nginx/sites-available/{{ domain_name }}.conf"
+ 
+  tasks:
+    - name: Générer une clé privée OpenSSL
+      community.crypto.openssl_privatekey:
+        path: "{{ openssl_private_key_path }}"
+        type: RSA
+        size: 4096
+ 
+    - name: Créer une demande de signature de certificat (CSR)
+      community.crypto.openssl_csr:
+        path: "{{ openssl_csr_path }}"
+        privatekey_path: "{{ openssl_private_key_path }}"
+        common_name: "{{ common_name }}"
+ 
+    - name: Créer un certificat auto-signé en se basant sur la CSR
+      community.crypto.x509_certificate:
+        path: "{{ openssl_cert_path }}"
+        privatekey_path: "{{ openssl_private_key_path }}"
+        csr_path: "{{ openssl_csr_path }}"
+        provider: selfsigned
+ 
+    - name: Installer NGINX
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+ 
+    # Cette tâche remplace le besoin d'un fichier de template nginx_ssl.conf.j2 séparé
+    - name: Créer une configuration NGINX pour SSL depuis le playbook
+      copy:
+        dest: "{{ nginx_conf_path }}"
+        content: |
+          server {
+              listen 443 ssl;
+              server_name {{ domain_name }};
+              ssl_certificate {{ openssl_cert_path }};
+              ssl_certificate_key {{ openssl_private_key_path }};
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
+              ssl_prefer_server_ciphers on;
+              root /var/www/html;
+              index index.nginx-debian.html;
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+ 
+    - name: Activer la configuration du site NGINX
+      file:
+        src: "{{ nginx_conf_path }}"
+        dest: "/etc/nginx/sites-enabled/{{ domain_name }}.conf"
+        state: link
+ 
+    - name: Supprimer le lien symbolique du site par défaut NGINX
+      file:
+        path: "/etc/nginx/sites-enabled/default"
+        state: absent
+ 
+    - name: Redémarrer NGINX pour prendre en compte la nouvelle configuration
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+ 
+  handlers:
+    - name: Reload NGINX
+      service:
+        name: nginx
+        state: reloaded
